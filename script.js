@@ -188,35 +188,6 @@ function initAnimations() {
     items.forEach(el => io.observe(el));
 }
 
-/* --- COUNTER ANIMATION --- */
-(function () {
-    const counters = document.querySelectorAll('.counter');
-    const io = new IntersectionObserver(entries => {
-        entries.forEach(e => {
-            if (e.isIntersecting) {
-                animateCounter(e.target);
-                io.unobserve(e.target);
-            }
-        });
-    }, { threshold: .5 });
-    counters.forEach(c => io.observe(c));
-
-    function animateCounter(el) {
-        const target = parseInt(el.dataset.target);
-        const duration = 1600;
-        const start = performance.now();
-        function step(now) {
-            const progress = Math.min((now - start) / duration, 1);
-            const ease = 1 - Math.pow(1 - progress, 3);
-            el.textContent = Math.floor(ease * target);
-            if (progress < 1) requestAnimationFrame(step);
-            else el.textContent = target;
-        }
-        requestAnimationFrame(step);
-    }
-})();
-
-
 /* --- TILT EFFECT (service cards) --- */
 (function () {
     document.querySelectorAll('.tilt-card').forEach(card => {
@@ -250,26 +221,56 @@ function initAnimations() {
     }, { passive: true });
 })();
 
-/* --- CONTACT FORM --- */
+/* --- CONTACT FORM ---
+   Sem backend próprio: o envio monta a mensagem e abre o WhatsApp da
+   Carrara IA já preenchido, garantindo que o contato realmente chegue. */
 (function () {
     const form = document.getElementById('contactForm');
     const success = document.getElementById('formSuccess');
     if (!form) return;
 
+    const WHATSAPP_NUMBER = '5511965771109';
+    const SERVICO_LABELS = {
+        institucional: 'Site Institucional',
+        ecommerce: 'Loja Online',
+        landing: 'Landing Page',
+        ia: 'Integração com IA',
+        outro: 'Outro'
+    };
+
     form.addEventListener('submit', e => {
         e.preventDefault();
+        if (!form.reportValidity()) return;
+
         const btn = form.querySelector('button[type=submit]');
         const origHTML = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
         btn.disabled = true;
 
+        const nome = form.nome.value.trim();
+        const email = form.email.value.trim();
+        const telefone = form.telefone.value.trim();
+        const servico = SERVICO_LABELS[form.servico.value] || '';
+        const mensagem = form.mensagem.value.trim();
+
+        const linhas = [
+            `Olá! Meu nome é ${nome}.`,
+            servico ? `Tipo de projeto: ${servico}` : '',
+            `Mensagem: ${mensagem}`,
+            `E-mail para contato: ${email}`,
+            telefone ? `Telefone: ${telefone}` : ''
+        ].filter(Boolean);
+
+        const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(linhas.join('\n'))}`;
+
         setTimeout(() => {
             btn.innerHTML = origHTML;
             btn.disabled = false;
+            window.open(url, '_blank', 'noopener,noreferrer');
             form.reset();
             success.classList.add('show');
             setTimeout(() => success.classList.remove('show'), 5000);
-        }, 1600);
+        }, 900);
     });
 })();
 
@@ -286,7 +287,9 @@ function initAnimations() {
 /* --- SMOOTH SCROLL FOR ANCHOR LINKS --- */
 document.querySelectorAll('a[href^="#"]').forEach(a => {
     a.addEventListener('click', e => {
-        const target = document.querySelector(a.getAttribute('href'));
+        const href = a.getAttribute('href');
+        if (href.length < 2) return; // "#" sozinho (ex.: links placeholder do rodapé) não tem alvo
+        const target = document.querySelector(href);
         if (!target) return;
         e.preventDefault();
         target.scrollIntoView({ behavior: 'smooth' });
